@@ -19,7 +19,19 @@ impl Worker {
     // the thread should exit by breaking the loop.
     // This function should return a `Worker` as a handle to the thread.
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
-        todo!()
+        let thread = thread::spawn(move || {
+            loop {
+                let result = receiver.lock().unwrap().recv();
+                match result {
+                    Ok(job) => job(),
+                    Err(_) => break
+                }
+            }
+        });
+        Worker {
+            id, 
+            thread: Some(thread),
+        }
     }
 }
 
@@ -35,7 +47,21 @@ impl ThreadPool {
     // in order to share it with the worker threads. Finally, return an instance of `ThreadPool`
     // that has the workers and the sender.
     pub fn new(size: usize) -> ThreadPool {
-        todo!()
+        if size < 1 {
+            panic!("Pool with size < 1");
+        }
+        let (tx, rx) = mpsc::channel();
+        let rx = Arc::new(Mutex::new(rx));
+        let mut workers = Vec::with_capacity(size);
+        for id in 0..size {
+            let rx_clone = Arc::clone(&rx);
+            workers.push(Worker::new(id, rx_clone));
+        }
+        ThreadPool {
+            workers,
+            sender: Some(tx),
+        }
+
     }
 
     // TODO:
@@ -44,7 +70,9 @@ impl ThreadPool {
     where
         F: FnOnce() + Send + 'static,
     {
-        todo!()
+        let job = Box::new(f);
+        let sender = self.sender.as_ref().unwrap();
+        sender.send(job).unwrap();
     }
 }
 
@@ -55,7 +83,14 @@ impl Drop for ThreadPool {
     // each worker thread handle to make sure they finish executing. Calling `join` will also
     // require you to take ownership of the worker thread handle from inside the option.
     fn drop(&mut self) {
-        todo!()
+        drop(self.sender.take());
+        for worker in &mut self.workers {
+            match worker.thread.take() {
+                Some(thread) => thread.join().unwrap(),
+                None => (),
+            }
+        }
+
     }
 }
 
