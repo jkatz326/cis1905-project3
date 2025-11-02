@@ -15,6 +15,7 @@ struct Args {
 // Inspect the contents of the `args` struct that has been created from the command line arguments
 // the user passed. Depending on the arguments, either start a server or make a client and send the
 // appropriate request. You may find it helpful to print the request response.
+//Test comment 
 fn main() {
     let args = Args::parse();
     todo!()
