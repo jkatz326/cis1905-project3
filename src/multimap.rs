@@ -11,7 +11,6 @@ pub struct ConcurrentMultiMap<K: Hash + Eq, V> {
 }
 
 impl<K: Hash + Eq, V> ConcurrentMultiMap<K, V> {
-    // TODO:
     // Create a new empty ConcurrentMultiMap with the given number of buckets.
     pub fn new(bucket_count: usize) -> Self {
         let mut buckets = Vec::with_capacity(bucket_count); 
@@ -25,7 +24,6 @@ impl<K: Hash + Eq, V> ConcurrentMultiMap<K, V> {
 }
 
 impl<K: Hash + Eq, V: Clone + Eq> ConcurrentMultiMap<K, V> {
-    // TODO:
     // Associate the given value with the given key. To do so, hash the key, and find the
     // corresponding bucket in the vector by modulo-ing the hash by the number of buckets. Then,
     // take a writer lock of the bucket and iterate over the linked list, checking if the
@@ -46,7 +44,6 @@ impl<K: Hash + Eq, V: Clone + Eq> ConcurrentMultiMap<K, V> {
         write.push_back((key, value))
     }
 
-    // TODO:
     // Retrieve all values associated with `key`. To do so, hash the key, and find the
     // corresponding bucket in the vector by modulo-ing the hash by the number of buckets. Then,
     // take a reader lock of the bucker and iterate over the linked list, collecting all values

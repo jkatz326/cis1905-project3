@@ -12,14 +12,32 @@ use std::thread;
 /// The number of workers in the server's thread pool
 const WORKERS: usize = 16;
 
-// TODO:
 // Implement the `process_message` function. This function should take a `ServerState`, a `Request`,
 // and a `TcpStream`. It should process the request and write the response to the stream.
 // Processing the request should simply require calling the appropriate function on the database
 // and then creating the appropriate response and turning it into bytes which are sent to along
 // the stream by calling the `write_all` method.
 fn process_message(state: Arc<ServerState>, request: Request, mut stream: TcpStream) {
-    todo!()
+    let response = match request {
+        Request::Publish { doc } => {
+            let index = state.database.publish(doc);
+            Response::PublishSuccess(index)
+        }
+        Request::Search { word } => {
+            let indices = state.database.search(&word);
+            Response::SearchSuccess(indices)
+        }
+        Request::Retrieve { id } => {
+            match state.database.retrieve(id) {
+                Some(doc) => Response::RetrieveSuccess(doc),
+                None => Response::Failure, // Document ID not found
+            }
+        }
+    };
+    let bytes = response.to_bytes();
+    if let Err(e) = stream.write_all(&bytes) {
+        eprintln!("Failed to send response: {}", e);
+    }
 }
 
 /// A struct that contains the state of the server
@@ -48,10 +66,11 @@ impl Server {
     // TODO:
     // Create a new server by using the `ServerState::new` function
     pub fn new() -> Self {
-        todo!()
+        Self {
+            state: Arc::new(ServerState::new()),
+        }
     }
 
-    // TODO:
     // Spawn a thread that listens for incoming connections on the given port. When a connection is
     // established, add a task to the thread pool that deserializes the request, and processes it
     // using the `process_message` function.
@@ -67,7 +86,62 @@ impl Server {
     // `ServerState` to see if the server has been stopped. If it has, you should break out of the
     // loop and return.
     fn listen(&self, port: u16) {
-        todo!()
+        let listener = match TcpListener::bind(("127.0.0.1", port)) {
+            Ok(listener) => listener,
+            Err(e) => {
+                eprintln!("Failed to bind to port {}: {}", port, e);
+                return;
+            }
+        };
+
+        let state = Arc::clone(&self.state);
+
+        // Listener thread
+        thread::spawn(move || {
+            println!("Blocking listener thread started on port {}", port);
+
+            // Block until a new client connects.
+            for stream_result in listener.incoming() {
+                
+                // Check the stop flag after a connection is received.
+                if state.is_stopped.load(Ordering::SeqCst) {
+                    println!("Listener thread shutting down.");
+                    break;
+                }
+
+                match stream_result {
+                    Ok(stream) => {
+                        // Connection established, clone state for the worker
+                        let state_clone = Arc::clone(&state);
+
+                        // Execute the task in the thread pool
+                        state.pool.execute(move || {
+                            let mut stream = stream;
+
+                            // Translate the request
+                            match Request::from_bytes(&mut stream) {
+                                Some(request) => {
+                                    // Process message
+                                    process_message(state_clone, request, stream);
+                                }
+                                None => {
+                                    eprintln!("Failed to deserialize request or client disconnected.");
+                                    // Try to send a failure response
+                                    let response = Response::Failure;
+                                    let _ = stream.write_all(&response.to_bytes());
+                                }
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        // Only print an error if not shutting down.
+                        if !state.is_stopped.load(Ordering::SeqCst) {
+                            eprintln!("Connection failed: {}", e);
+                        }
+                    }
+                }
+            }
+        });
     }
 
     // This function has already been partially completed for you
@@ -85,8 +159,13 @@ impl Server {
             }
         }
 
-        // TODO: Call the listen function and then loop (doing nothing) until the server has been stopped
-        todo!()
+        // Call the listen function and then loop (doing nothing) until the server has been stopped
+        self.listen(port);
+        println!("Server Running: Interupt with Ctrl-C");
+        while !self.state.is_stopped.load(Ordering::SeqCst) {
+            thread::sleep(std::time::Duration::from_millis(500)); //sleep rather than busy waiting
+        }
+        println!("Exiting");
     }
     pub fn stop(&self) {
         self.state.is_stopped.store(true, Ordering::SeqCst);

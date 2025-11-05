@@ -13,7 +13,6 @@ struct Worker {
     thread: Option<thread::JoinHandle<()>>,
 }
 impl Worker {
-    // TODO:
     // Spawn a new thread that will loop forever, receiving jobs from the receiver and executing
     // them. If the `recv()` method returns an error, it means the thread pool has been dropped and
     // the thread should exit by breaking the loop.
@@ -41,7 +40,6 @@ pub struct ThreadPool {
 }
 
 impl ThreadPool {
-    // TODO:
     // Spawn `size` workers by calling the `Worker::new` function `size` times, each time with a
     // unique id. You will need to create a channel and wrap the receiver in an `Arc<Mutex<...>>`
     // in order to share it with the worker threads. Finally, return an instance of `ThreadPool`
@@ -64,7 +62,6 @@ impl ThreadPool {
 
     }
 
-    // TODO:
     // Send the job `f` to the worker threads via the channel `send` method.
     pub fn execute<F>(&self, f: F)
     where
@@ -77,7 +74,6 @@ impl ThreadPool {
 }
 
 impl Drop for ThreadPool {
-    // TODO:
     // First, take ownership of the sender from inside the option, then drop it. This will trigger
     // the worker threads to stop since the channel is closed, so you should then call `join` on
     // each worker thread handle to make sure they finish executing. Calling `join` will also
