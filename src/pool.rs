@@ -77,7 +77,7 @@ impl Drop for ThreadPool {
     // First, take ownership of the sender from inside the option, then drop it. This will trigger
     // the worker threads to stop since the channel is closed, so you should then call `join` on
     // each worker thread handle to make sure they finish executing. Calling `join` will also
-    // require you to take ownership of the worker thread handle from inside the option.
+    // require you to take ownership of the worker thread handle from inside the option
     fn drop(&mut self) {
         drop(self.sender.take());
         for worker in &mut self.workers {
